@@ -15,11 +15,14 @@ public class Fakt {
         return dodatki;
     }
 
-    public Fakt(String nazwa, List<String> dodatki)
+    public void setDodatki(List<String> dodatki)
     {
-
-        this.nazwa = nazwa;
         this.dodatki = dodatki;
+    }
+
+    public Fakt(String nazwa)
+    {
+        this.nazwa = nazwa;
     }
 
     private List<String> dodatki;

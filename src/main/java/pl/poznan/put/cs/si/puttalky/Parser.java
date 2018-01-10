@@ -55,6 +55,10 @@ public class Parser {
 
 	
 	public String[] parsuj (String wypowiedz) {
+	    if(wypowiedz.contains("mięs"))
+        {
+            wypowiedz += " dodatekMięsny";
+        }
 		String[] slowa = wypowiedz.split(" ");
 		ArrayList<String> tokeny = new ArrayList<String>();
 		
@@ -90,5 +94,18 @@ public class Parser {
             t.printStackTrace();
         }
     }
+
+    public boolean czyBez()
+	{
+	    for(String slowo : slowaKluczowe)
+        {
+            slowo = slowo.toLowerCase();
+            if(slowo.contains("bez"))
+            {
+                return true;
+            }
+        }
+        return false;
+	}
 	
 }

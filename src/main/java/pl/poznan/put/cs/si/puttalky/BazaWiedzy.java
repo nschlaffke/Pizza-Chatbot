@@ -38,6 +38,7 @@ public class BazaWiedzy {
     OWLReasoner silnik;
     
     public void inicjalizuj() {
+
 		InputStream plik = this.getClass().getResourceAsStream("/pizza.owl");
 		manager = OWLManager.createOWLOntologyManager();
 		
@@ -71,12 +72,16 @@ public class BazaWiedzy {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		
+	listaPizz(); // TODO remove
     }
     
     public Set<String> dopasujDodatek(String s){
     	Set<String> result = new HashSet<String>();
     	for (OWLClass klasa : listaDodatkow){
+    	    if(s.toLowerCase().contains("pizz"))
+            {
+                break;
+            }
     		if (klasa.toString().toLowerCase().contains(s.toLowerCase()) && s.length()>2){
     			result.add(klasa.getIRI().toString());
     		}
@@ -94,6 +99,17 @@ public class BazaWiedzy {
 		}
 		return poprzednik;
 	}
+    public Set<String> wyszukajPizzeBezDodatkow(List<String> dodatki)
+    {
+        Set<String> pizzeZDodatkami = new HashSet<String>();
+        for(String dodatek : dodatki)
+        {
+            pizzeZDodatkami.addAll(wyszukajPizzePoDodatkach(dodatek));
+        }
+        Set<String> lista = listaPizz();
+        lista.removeAll(pizzeZDodatkami);
+        return lista;
+    }
     public Set<String> wyszukajPizzePoDodatkach(String iri){
     	Set<String> pizze = new HashSet<String>();
     	OWLObjectProperty maDodatek = manager.getOWLDataFactory().getOWLObjectProperty(IRI.create("http://semantic.cs.put.poznan.pl/ontologie/pizza.owl#maDodatek"));
@@ -127,6 +143,29 @@ public class BazaWiedzy {
         return result;
     }
 
+    public Set<String> listaPizz()
+    {
+        Set<String> result = new HashSet<String>();
+        for(OWLClass owl : listaNazwanychPizz)
+        {
+            String pizza = owl.toString().replace("<http://semantic.cs.put.poznan.pl/ontologie/pizza.owl#","");
+            pizza = pizza.replace(">", "");
+            if(!pizza.equals("owl:Nothing"))
+            {
+                result.add(pizza);
+            }
+        }
+        for(OWLClass owl : listaTypowPizz)
+        {
+            String pizza = owl.toString().replace("<http://semantic.cs.put.poznan.pl/ontologie/pizza.owl#","");
+            pizza = pizza.replace(">", "");
+            if(!pizza.equals("owl:Nothing"))
+            {
+                result.add(pizza);
+            }
+        }
+        return result;
+    }
 	public Set<String> dopasujTypPizzy(String s){
 		Set<String> result = new HashSet<String>();
 		String parsed = new String("");
