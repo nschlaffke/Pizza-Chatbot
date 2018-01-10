@@ -8,7 +8,10 @@ import pl.poznan.put.cs.si.puttalky.BazaWiedzy;
 import java.util.Set
 import java.lang.reflect.Array
 import java.util.Arrays
-import org.semanticweb.owlapi.model.IRI;
+import org.semanticweb.owlapi.model.IRI
+import java.util.List
+import java.util.ArrayList
+import java.lang.String;
 
 
 /** Author: agalawrynowicz<br>
@@ -27,6 +30,7 @@ rule "start"
 		insert(new Fakt("start", "0"));
 end
 
+//TODO: Improve seatching using a pizza type
 rule "Zamow nazwana pizze"
     salience 3
 
@@ -69,6 +73,7 @@ rule "Podaj dodatki"
 	when
 	    not Fakt(nazwa == "nazwanaPizza") &&
 		not Fakt(nazwa == "dodatek")
+		not Fakt(nazwa == "dodatki")
 		dodatek : Dodatek()
 		parser : Parser()
 		baza : BazaWiedzy()
@@ -76,11 +81,26 @@ rule "Podaj dodatki"
 		  dodatek.setMonit("Jaki dodatek powinna zawierać Twoja pizza?:\n");
 		  dodatek.zadajPytanie();
 		  parser.przetworzOdpowiedz();
-		 
-		for (String slowo : parser.getSlowaKluczowe()){
-			for (String uriKlasy : baza.dopasujDodatek(slowo)) { // sprawdza czy dodatek znajduje sie w bazie, jesli tak to dodaje go do faktów
-		        insert(new Fakt("dodatek", uriKlasy));
+
+		List<String> dodatki = new ArrayList<>();
+		for (String slowo : parser.getSlowaKluczowe())
+		{
+			for (String uriKlasy : baza.dopasujDodatek(slowo))
+			{ // sprawdza czy dodatek znajduje sie w bazie, jesli tak to dodaje go do faktów
+		        dodatki.add(uriKlasy);
 		    }
+		}
+		if(dodatki.size() == 1)
+		{
+		   insert(new Fakt("dodatek", dodatki.get(0)));
+		}
+		else if(dodatki.size() > 1)
+		{
+		   insert(new Fakt("dodatki", dodatki));
+		}
+		else
+		{
+		    System.out.println("Dodatek nieznany\n");
 		}
 		    		
 		//@TODO	brak dopasowania
@@ -113,7 +133,7 @@ rule "Podaj rodzaj ciasta"
 		update(ciasto);
 end
 
-rule "Polecana pizza"
+rule "Polecana pizza jeden dodatek"
 	salience 1
 	
 	when
@@ -126,7 +146,7 @@ rule "Polecana pizza"
 		baza: BazaWiedzy()
 		pizza: Pizza()
 	then
-
+        System.out.println("Jeden dodatek");
 		Set<String> pizze = baza.wyszukajPizzePoDodatkach($dodatek.getWartosc());
             
         if (pizze.size()>1){            		
@@ -139,11 +159,47 @@ rule "Polecana pizza"
 		    }
 		}
 		else {
-			System.out.println("Przyjęto pizzę na specjalne zamówienie zawierającą dodatek " + $dodatek.getWartosc() + "\n");
+			System.out.println("Przyjęto pizzę na specjalne zamówienie zawierającą dodatek " +
+			$dodatek.getWartosc().replace("http://semantic.cs.put.poznan.pl/ontologie/pizza.owl#", "") +
+			"\n");
 	    }
 
 end
+rule "Pizza z wieloma dodatkami"
+	salience 1
 
+	when
+	    not Fakt(nazwa == "nazwanaPizza") &&
+		Fakt(nazwa == "dodatki") &&
+		Fakt(nazwa == "rodzaj_ciasta") &&
+		not Fakt(nazwa == "pizza_propozycja") &&
+        $dodatki : Fakt( nazwa == "dodatki")
+
+		baza: BazaWiedzy()
+		pizza: Pizza()
+	then
+
+		Set<String> pizze = baza.wyszukajPizzePoLiscieDodatkow($dodatki.getDodatki());
+
+        if (pizze.size()>1){
+			for (String nazwaPizzy : pizze) {
+				insert(new Fakt("pizza_propozycja", nazwaPizzy));
+		    	//System.out.println();
+		    	if (!nazwaPizzy.equals("Nothing")){
+		       	   System.out.println("Polecam pizzę:"+nazwaPizzy);
+		       	}
+		    }
+		}
+		else
+		{
+			System.out.println("Przyjęto pizzę na specjalne zamówienie zawierającą dodatki: ");
+		    for(String dodatek : $dodatki.getDodatki())
+		        {
+		            System.out.println(dodatek);
+		        }
+	    }
+
+end
 
 rule "zakończenie"
 

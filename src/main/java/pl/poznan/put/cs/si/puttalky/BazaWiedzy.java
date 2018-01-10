@@ -3,6 +3,7 @@ package pl.poznan.put.cs.si.puttalky;
 import java.io.File;
 import java.io.InputStream;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import org.kie.api.runtime.KieSession;
@@ -80,7 +81,17 @@ public class BazaWiedzy {
     	}
     	return result;
     }
-    
+
+    public Set<String> wyszukajPizzePoLiscieDodatkow(List<String> dodatki)
+	{
+		Set<String> poprzednik = wyszukajPizzePoDodatkach(dodatki.get(0));
+		for(String dodatek : dodatki)
+		{
+			Set<String> nastepnik = wyszukajPizzePoDodatkach(dodatek);
+			poprzednik.retainAll(nastepnik);
+		}
+		return poprzednik;
+	}
     public Set<String> wyszukajPizzePoDodatkach(String iri){
     	Set<String> pizze = new HashSet<String>();
     	OWLObjectProperty maDodatek = manager.getOWLDataFactory().getOWLObjectProperty(IRI.create("http://semantic.cs.put.poznan.pl/ontologie/pizza.owl#maDodatek"));
