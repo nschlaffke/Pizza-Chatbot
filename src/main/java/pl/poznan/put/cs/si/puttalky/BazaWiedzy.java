@@ -2,10 +2,12 @@ package pl.poznan.put.cs.si.puttalky;
 
 import java.io.File;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import morfologik.stemming.polish.PolishStemmer;
 import org.kie.api.runtime.KieSession;
 import org.semanticweb.HermiT.Reasoner;
 import org.semanticweb.owlapi.apibinding.OWLManager;
@@ -113,7 +115,12 @@ public class BazaWiedzy {
     public Set<String> dopasujNazwePizzy(String s){
         Set<String> result = new HashSet<String>();
         for (OWLClass klasa : listaNazwanychPizz){
-            if (klasa.toString().toLowerCase().contains(s.toLowerCase()) && s.length()>2){
+			String word = klasa
+						.getIRI()
+						.getFragment()
+						.toLowerCase();
+
+            if (word.contains(s.toLowerCase()) && s.length()>2){
                 result.add(klasa.getIRI().toString());
             }
         }
@@ -122,15 +129,43 @@ public class BazaWiedzy {
 
 	public Set<String> dopasujTypPizzy(String s){
 		Set<String> result = new HashSet<String>();
+		String parsed = new String("");
 		Parser parser = new Parser();
+		PolishStemmer stemmer = new PolishStemmer();
+
 		for (OWLClass klasa : listaTypowPizz){
-			System.out.println(klasa.toString().toLowerCase());
-			if (klasa.toString().toLowerCase().contains(s.toLowerCase()) && s.length()>2){
+			String word = klasa
+					.getIRI()
+					.getFragment()
+					.toLowerCase()
+					.replace("pizzaz","")
+					.replace("pizza", "");
+
+			if(parser.stem(stemmer, word).length > 1) {
+				parsed = parser.stem(stemmer, word)[0];
+			}
+			else {
+				parsed = word;
+			}
+			if (parsed.contains(s.toLowerCase()) &&
+					s.length()>2){
 				result.add(klasa.getIRI().toString());
 			}
 		}
 		return result;
 	}
+
+	public ArrayList<String> wyszukajPizzePoTypie(String iri){
+		OWLClass typ = manager.getOWLDataFactory().getOWLClass(IRI.create(iri));
+		ArrayList<String> result = new ArrayList<String>();
+
+		for(org.semanticweb.owlapi.reasoner.Node<OWLClass> podklasa: silnik.getSubClasses(typ, false)) {
+			result.add(podklasa.getEntities().iterator().next().asOWLClass().getIRI().getFragment());
+		}
+
+		return result;
+	}
+
 
     public static void main(String[] args) {
 		BazaWiedzy baza = new BazaWiedzy();

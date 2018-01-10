@@ -13,12 +13,11 @@ import java.util.List
 import java.util.ArrayList
 import java.lang.String;
 
-
 /** Author: agalawrynowicz<br>
  * Date: 19-Dec-2016 */
 
 rule "start"
-	salience 4
+	salience 5
 	
 	when
 		not Fakt(nazwa=="start")
@@ -30,40 +29,54 @@ rule "start"
 		insert(new Fakt("start", "0"));
 end
 
-//TODO: Improve seatching using a pizza type
-rule "Zamow nazwana pizze"
-    salience 3
+rule "Nazwa lub typ"
+    salience 4
 
     when
+        not Fakt(nazwa == "nazwaLubTyp")
         not Fakt(nazwa == "nazwanaPizza")
         pizza: Pizza()
         parser: Parser()
-        baza: BazaWiedzy()
     then
         pizza.setMonit("Czy chcesz zamówić pizzę po nazwie lub typie?");
         pizza.zadajPytanie();
         parser.przetworzOdpowiedz();
 
-        //dodac moze te odp do jakiejs stalej / do bazy
         if(Arrays.asList(parser.getSlowaKluczowe()).contains("tak") ||
-        Arrays.asList(parser.getSlowaKluczowe()).contains("Tak") ||
-        Arrays.asList(parser.getSlowaKluczowe()).contains("TAK")){
-            pizza.setMonit("Podaj nazwe lub typ pizzy");
-            pizza.zadajPytanie();
-            parser.przetworzOdpowiedz();
-
-            for (String slowo : parser.getSlowaKluczowe()){
-                for (String uriKlasyNazwa : baza.dopasujNazwePizzy(slowo)) { // sprawdza czy dodatek znajduje sie w bazie, jesli tak to dodaje go do faktów
-                    insert(new Fakt("nazwanaPizza", uriKlasyNazwa));
-                }
-
-                for(String uriKlasyTyp: baza.dopasujTypPizzy(slowo)){
-                    insert(new Fakt("nazwanaPizza", uriKlasyTyp));
-                }
-            }
-
-            update(pizza);
+           Arrays.asList(parser.getSlowaKluczowe()).contains("Tak") ||
+           Arrays.asList(parser.getSlowaKluczowe()).contains("TAK")){
+            insert(new Fakt("nazwaLubTyp", null));
         }
+
+        update(pizza);
+end
+
+rule "Znajdz pizze o podanym typie lub nazwie"
+    salience 3
+
+    when
+        Fakt(nazwa == "nazwaLubTyp")
+        not Fakt(nazwa == "nazwanaPizza")
+        not Fakt(nazwa == "typPizzy")
+        pizza: Pizza()
+        parser: Parser()
+        baza: BazaWiedzy()
+    then
+        pizza.setMonit("Podaj nazwe lub typ pizzy");
+        pizza.zadajPytanie();
+        parser.przetworzOdpowiedz();
+
+        for (String slowo : parser.getSlowaKluczowe()){
+             for (String uriKlasyNazwa : baza.dopasujNazwePizzy(slowo)) {
+                insert(new Fakt("nazwanaPizza", uriKlasyNazwa));
+             }
+
+             for(String uriKlasyTyp: baza.dopasujTypPizzy(slowo)){
+                insert(new Fakt("typPizzy", uriKlasyTyp));
+             }
+        }
+
+        update(pizza);
 
 end
 
@@ -72,6 +85,7 @@ rule "Podaj dodatki"
 	
 	when
 	    not Fakt(nazwa == "nazwanaPizza") &&
+	    not Fakt(nazwa == "typPizzy") &&
 		not Fakt(nazwa == "dodatek")
 		not Fakt(nazwa == "dodatki")
 		dodatek : Dodatek()
@@ -112,6 +126,7 @@ rule "Podaj rodzaj ciasta"
 	
 	when
 	    not Fakt(nazwa == "nazwanaPizza") &&
+	    not Fakt(nazwa == "typPizzy") &&
 		not Fakt(nazwa == "rodzaj_ciasta")
 		ciasto : Ciasto()
 		parser : Parser()
@@ -138,6 +153,7 @@ rule "Polecana pizza jeden dodatek"
 	
 	when
 	    not Fakt(nazwa == "nazwanaPizza") &&
+	    not Fakt(nazwa == "typPizzy")
 		Fakt(nazwa == "dodatek") && 
 		Fakt(nazwa == "rodzaj_ciasta") && 	
 		not Fakt(nazwa == "pizza_propozycja") &&
@@ -152,9 +168,8 @@ rule "Polecana pizza jeden dodatek"
         if (pizze.size()>1){            		
 			for (String nazwaPizzy : pizze) {
 				insert(new Fakt("pizza_propozycja", nazwaPizzy));
-		    	//System.out.println();
 		    	if (!nazwaPizzy.equals("Nothing")){
-		       	   System.out.println("Polecam pizzę:"+nazwaPizzy);
+		    	    System.out.println("Polecam pizzę:"+nazwaPizzy);
 		       	}
 		    }
 		}
@@ -198,14 +213,47 @@ rule "Pizza z wieloma dodatkami"
 		            System.out.println(dodatek);
 		        }
 	    }
+end
 
+rule "Polecana pizza po nazwie"
+    salience 1
+
+    when 
+        fakt: Fakt(nazwa == "nazwanaPizza")
+    then
+         System.out.println("Przyjęto zamówienie na pizzę o nazwie: " +
+         fakt
+         .getWartosc()
+         .replace("http://semantic.cs.put.poznan.pl/ontologie/pizza.owl#", "")
+         .replace(">", "")
+          + "\n");
+end
+
+rule "Polecane pizze po typie"
+    salience 1
+
+    when
+        fakt: Fakt(nazwa == "typPizzy")
+        baza: BazaWiedzy()
+    then
+        ArrayList<String> polecanePizze = baza.wyszukajPizzePoTypie(fakt.getWartosc());
+
+        if(polecanePizze.size() > 1){
+            for(String nazwaPizzy: polecanePizze){
+                if(!nazwaPizzy.equals("Nothing")){
+                    System.out.println("Polecam pizzę:"+nazwaPizzy);
+                }
+            }
+        }
 end
 
 rule "zakończenie"
 
 	when
 	    zamowienie : Zamowienie() &&
-	    (Fakt(nazwa == "pizza_propozycja") || Fakt(nazwa == "nazwanaPizza"))
+	    (Fakt(nazwa == "pizza_propozycja") ||
+	    Fakt(nazwa == "nazwanaPizza") ||
+	    Fakt(nazwa == "typPizzy"))
 		not (Fakt(nazwa == "koniec"))
 
 	then
