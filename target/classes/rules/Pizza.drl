@@ -5,14 +5,17 @@ import pl.poznan.put.cs.si.puttalky.Zamowienie;
 import pl.poznan.put.cs.si.puttalky.Ciasto;
 import pl.poznan.put.cs.si.puttalky.Dodatek;
 import pl.poznan.put.cs.si.puttalky.BazaWiedzy;
-import java.util.Set;
+import java.util.Set
+import java.lang.reflect.Array
+import java.util.Arrays
+import org.semanticweb.owlapi.model.IRI;
 
 
 /** Author: agalawrynowicz<br>
  * Date: 19-Dec-2016 */
 
 rule "start"
-	salience 3
+	salience 4
 	
 	when
 		not Fakt(nazwa=="start")
@@ -24,10 +27,47 @@ rule "start"
 		insert(new Fakt("start", "0"));
 end
 
+rule "Zamow nazwana pizze"
+    salience 3
+
+    when
+        not Fakt(nazwa == "nazwanaPizza")
+        pizza: Pizza()
+        parser: Parser()
+        baza: BazaWiedzy()
+    then
+        pizza.setMonit("Czy chcesz zamówić pizzę po nazwie lub typie?");
+        pizza.zadajPytanie();
+        parser.przetworzOdpowiedz();
+
+        //dodac moze te odp do jakiejs stalej / do bazy
+        if(Arrays.asList(parser.getSlowaKluczowe()).contains("tak") ||
+        Arrays.asList(parser.getSlowaKluczowe()).contains("Tak") ||
+        Arrays.asList(parser.getSlowaKluczowe()).contains("TAK")){
+            pizza.setMonit("Podaj nazwe lub typ pizzy");
+            pizza.zadajPytanie();
+            parser.przetworzOdpowiedz();
+
+            for (String slowo : parser.getSlowaKluczowe()){
+                for (String uriKlasyNazwa : baza.dopasujNazwePizzy(slowo)) { // sprawdza czy dodatek znajduje sie w bazie, jesli tak to dodaje go do faktów
+                    insert(new Fakt("nazwanaPizza", uriKlasyNazwa));
+                }
+
+                for(String uriKlasyTyp: baza.dopasujTypPizzy(slowo)){
+                    insert(new Fakt("nazwanaPizza", uriKlasyTyp));
+                }
+            }
+
+            update(pizza);
+        }
+
+end
+
 rule "Podaj dodatki"
 	salience 2
 	
 	when
+	    not Fakt(nazwa == "nazwanaPizza") &&
 		not Fakt(nazwa == "dodatek")
 		dodatek : Dodatek()
 		parser : Parser()
@@ -38,11 +78,6 @@ rule "Podaj dodatki"
 		  parser.przetworzOdpowiedz();
 		 
 		for (String slowo : parser.getSlowaKluczowe()){
-		    if(baza.dopasujDodatek(slowo).isEmpty()){
-		        insert(new Fakt("dodatek", slowo));
-		        System.out.println("Przyjęto pizzę na specjalne zamówienie zawierającą dodatek " + slowo + "\n");
-		    }
-
 			for (String uriKlasy : baza.dopasujDodatek(slowo)) { // sprawdza czy dodatek znajduje sie w bazie, jesli tak to dodaje go do faktów
 		        insert(new Fakt("dodatek", uriKlasy));
 		    }
@@ -56,6 +91,7 @@ rule "Podaj rodzaj ciasta"
 	salience 2
 	
 	when
+	    not Fakt(nazwa == "nazwanaPizza") &&
 		not Fakt(nazwa == "rodzaj_ciasta")
 		ciasto : Ciasto()
 		parser : Parser()
@@ -81,6 +117,7 @@ rule "Polecana pizza"
 	salience 1
 	
 	when
+	    not Fakt(nazwa == "nazwanaPizza") &&
 		Fakt(nazwa == "dodatek") && 
 		Fakt(nazwa == "rodzaj_ciasta") && 	
 		not Fakt(nazwa == "pizza_propozycja") &&
@@ -102,7 +139,7 @@ rule "Polecana pizza"
 		    }
 		}
 		else {
-			System.out.println(pizza.getBrakDopasowania());
+			System.out.println("Przyjęto pizzę na specjalne zamówienie zawierającą dodatek " + $dodatek.getWartosc() + "\n");
 	    }
 
 end
@@ -111,10 +148,10 @@ end
 rule "zakończenie"
 
 	when
-		not (Fakt(nazwa == "koniec")) &&
-		Fakt(nazwa == "pizza_propozycja") 
+	    zamowienie : Zamowienie() &&
+	    (Fakt(nazwa == "pizza_propozycja") || Fakt(nazwa == "nazwanaPizza"))
+		not (Fakt(nazwa == "koniec"))
 
-		zamowienie : Zamowienie()
 	then
 		insert(new Fakt("koniec", "0"));
 		zamowienie.pozegnanie();

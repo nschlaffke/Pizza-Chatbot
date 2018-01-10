@@ -26,6 +26,8 @@ public class Pizza extends Formatka {
 	{
 		return this.opis;
 	}
-	
 
+	public void zadajPytanie() {
+		System.out.println(getMonit());
+	}
 }
